@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
 import bcrypt from 'bcrypt'
 import User from './models/User'
-import express , {Express, Request, Response} from "express";
+import express, {Express, Request, Response} from "express";
 
 const app: Express = express()
 mongoose.connect('mongodb://localhost:27017/auth_expressjs')
@@ -9,15 +9,13 @@ mongoose.connect('mongodb://localhost:27017/auth_expressjs')
     .catch(err => console.error(err))
 
 
-app.post('/account/register', async (req:Request, res:Response) => {
+app.post('/account/register', async (req: Request, res: Response) => {
     const {email, password} = req.query;
-    if (!email || !password || email == "" || password == "") {
-        return res.status(400).json({ message: 'please enter email and password' })
-    }
-    const userExisting = await User.findOne({email:email})
-    if (userExisting) {
-        return res.status(400).json({ message: `${email} already exists` })
-    }
+    if (!email || !password || email == "" || password == "") return res.status(400).json({message: 'please enter email and password'})
+
+    const userExisting = await User.findOne({email: email})
+    if (userExisting) return res.status(400).json({message: `${email} already exists`})
+
     const hashedPass = await bcrypt.hash(password as string, 10)
     const user = new User({email: email, password: hashedPass})
 
@@ -25,6 +23,18 @@ app.post('/account/register', async (req:Request, res:Response) => {
 
     return res.status(201).send('user registered successfully.')
 
+
+})
+
+app.post('/account/extraInfo', async (req: Request, res: Response) => {
+    const {firstName, lastName, phoneNumber, email} = req.query;
+    if (!firstName || !lastName || phoneNumber || !email || email == "") return res.status(400).json({message: 'please enter phone number and first name and last name'})
+    await User.findOneAndUpdate({email: email}, {phoneNumber: phoneNumber, firstName: firstName, lastName: lastName})
+    return res.status(200).json({message: "user updated successfully!"})
+})
+
+
+app.post('/account/login', (req: Request, res: Response) => {
 
 })
 
