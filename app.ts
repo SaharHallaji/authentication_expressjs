@@ -42,7 +42,9 @@ app.post('/account/login', async(req: Request, res: Response) => {
     if (!user) return res.status(400).json({ message: 'user does not exist' })
     const passwordMatch = await bcrypt.compare(password as string, user.password)
     if (!passwordMatch) return res.status(401).json({message : "password is incorrect!"})
-    const token = jwt.sign()
+    const token = jwt.sign({email: user.email},'', {expiresIn: '1h'})
+    if (!token) return res.status(500).json({ message: 'something went wrong!' })
+    return res.status(200).json(token)
 })
 
 app.listen(5000)
