@@ -3,6 +3,8 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import User from './models/User'
 import express, {Express, Request, Response} from "express";
+import checkToken from "./middleware/checkToken";
+import AuthRequest from "./interfaces";
 
 const app: Express = express()
 mongoose.connect('mongodb://localhost:27017/auth_expressjs')
@@ -35,16 +37,34 @@ app.post('/account/extraInfo', async (req: Request, res: Response) => {
 })
 
 
-app.post('/account/login', async(req: Request, res: Response) => {
-    const {email , password} = req.query
-    if (!(email || password)) return res.status(400).json({ message: 'enter the correct username and password' })
-    const user = await User.findOne({email: email })
-    if (!user) return res.status(400).json({ message: 'user does not exist' })
-    const passwordMatch = await bcrypt.compare(password as string, user.password)
-    if (!passwordMatch) return res.status(401).json({message : "password is incorrect!"})
-    const token = jwt.sign({email: user.email},'', {expiresIn: '1h'})
-    if (!token) return res.status(500).json({ message: 'something went wrong!' })
-    return res.status(200).json(token)
+app.post('/account/login', async (req: Request, res: Response) => {
+    const {email, password} = req.query
+    if (!(email || password)) return res.status(400).json({message: 'enter the correct username and password'})
+
+    const user = await User.findOne({email: email})
+
+    if (!user || !(await bcrypt.compare(password as string, user.password))) return res.status(400).json({message: 'email or password is incorrect!'})
+
+    const token = jwt.sign({email: user.email}, '', {expiresIn: '1h'})
+    if (!token) return res.status(500).json({message: 'something went wrong!'})
+    return res.status(200).json({message: "login successful!", token})
+})
+
+app.get('/user/panel', checkToken, (req: AuthRequest, res: Response) => {
+    const user = User.findOne({email: req.user.email})
+        .then((data) => {
+            return res.status(200).send({
+                firstName: data.firstName,
+                lastName: data.lastName,
+                phoneNumber: data.phoneNumber,
+                email: data.email
+            })
+        })
+        .catch((err) => {
+            console.log(err)
+            return res.status(404).send({message: `something went wrong!`})
+        })
+
 })
 
 app.listen(5000)
