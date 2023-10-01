@@ -49,7 +49,7 @@ app.post('/account/extraInfo', checkToken, async (req: AuthRequest, res: Respons
             })
         })
         .catch((err) => {
-            console.log()
+            console.log(err)
             return res.status(500).json({message: "something went wrong"})
         })
 })
