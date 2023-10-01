@@ -1,16 +1,16 @@
 import {NextFunction , Request , Response} from "express";
 import jwt from "jsonwebtoken";
-import secretKey from "../utils/generateSecretKey";
 import AuthRequest from "../interfaces";
+import {secretKey} from "../app";
 const checkToken =(req:AuthRequest ,res:Response ,next:NextFunction)=>{
     const authHeader = req.headers.authorization
     const token = authHeader && authHeader.split(' ')[1]
-    if (token == null) return res.status(401).send("unauthorized")
+    if (!token) return res.status(401).send("access denied")
 
     try {
         jwt.verify(token, secretKey as string, (err: any, user: any) => {
 
-            if (err) return res.sendStatus(403)
+            if (err) return res.status(403).send('unauthorized!')
 
             req.user = user
 
@@ -18,7 +18,7 @@ const checkToken =(req:AuthRequest ,res:Response ,next:NextFunction)=>{
         })
     }
     catch (err) {
-        return res.status(401).send(`something went wrong : ${err}`)
+        return res.status(500).send(`something went wrong : ${err}`)
     }
 }
 

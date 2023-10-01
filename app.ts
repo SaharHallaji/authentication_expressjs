@@ -5,8 +5,14 @@ import User from './models/User'
 import express, {Express, Request, Response} from "express";
 import checkToken from "./middleware/checkToken";
 import AuthRequest from "./interfaces";
+import crypto from "crypto"
+
+
+export const secretKey = Object.freeze(crypto.randomBytes(64).toString("base64"))
+
 
 const app: Express = express()
+
 mongoose.connect('mongodb://localhost:27017/auth_expressjs')
     .then(() => console.log('connected to MongoDB'))
     .catch(err => console.error(err))
@@ -20,7 +26,7 @@ app.post('/account/register', async (req: Request, res: Response) => {
     if (userExisting) return res.status(400).json({message: `${email} already exists`})
 
     const hashedPass = await bcrypt.hash(password as string, 10)
-    const user = new User({email: email, password: hashedPass})
+    const user = new User({email: email, password: hashedPass, firstName: null, lastName: null, phoneNumber: null})
 
     await user.save()
 
@@ -29,29 +35,42 @@ app.post('/account/register', async (req: Request, res: Response) => {
 
 })
 
-app.post('/account/extraInfo', async (req: Request, res: Response) => {
-    const {firstName, lastName, phoneNumber, email} = req.query;
-    if (!(firstName || lastName || phoneNumber || email) || email == "") return res.status(400).json({message: 'please enter phone number and first name and last name'})
-    await User.findOneAndUpdate({email: email}, {phoneNumber: phoneNumber, firstName: firstName, lastName: lastName})
-    return res.status(200).json({message: "user updated successfully!"})
+app.post('/account/extraInfo', checkToken, async (req: AuthRequest, res: Response) => {
+    const {firstName, lastName, phoneNumber} = req.query;
+    if (!(firstName || lastName || phoneNumber)) return res.status(400).json({message: 'please enter phone number and first name and last name'})
+    await User.findOneAndUpdate({email: req.user.email}, {phoneNumber: phoneNumber, firstName: firstName, lastName: lastName}, {upsert:true})
+        .then((data) => {
+            return res.status(200).json({
+                message: "user updated successfully!",
+                firstName: data.firstName,
+                lastName: data.lastName,
+                phoneNumber: data.phoneNumber,
+                email: data.email
+            })
+        })
+        .catch((err) => {
+            console.log()
+            return res.status(500).json({message: "something went wrong"})
+        })
 })
 
 
 app.post('/account/login', async (req: Request, res: Response) => {
     const {email, password} = req.query
     if (!(email || password)) return res.status(400).json({message: 'enter the correct username and password'})
-
-    const user = await User.findOne({email: email})
-
-    if (!user || !(await bcrypt.compare(password as string, user.password))) return res.status(400).json({message: 'email or password is incorrect!'})
-
-    const token = jwt.sign({email: user.email}, '', {expiresIn: '1h'})
-    if (!token) return res.status(500).json({message: 'something went wrong!'})
-    return res.status(200).json({message: "login successful!", token})
+    try {
+        const user = await User.findOne({email: email})
+        if (!user || !(await bcrypt.compare(password as string, user.password as string))) return res.status(400).json({message: 'email or password is incorrect!'})
+        const token = jwt.sign({email: user.email}, secretKey, {expiresIn: '1h'})
+        return res.status(200).json({message: "login successful!", token})
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({message: "something went wrong!"})
+    }
 })
 
 app.get('/user/panel', checkToken, (req: AuthRequest, res: Response) => {
-    const user = User.findOne({email: req.user.email})
+    User.findOne({email: req.user.email})
         .then((data) => {
             return res.status(200).send({
                 firstName: data.firstName,
@@ -68,3 +87,4 @@ app.get('/user/panel', checkToken, (req: AuthRequest, res: Response) => {
 })
 
 app.listen(5000)
+
