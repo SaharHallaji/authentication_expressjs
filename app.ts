@@ -6,37 +6,16 @@ import express, {Express, Request, Response} from "express";
 import checkToken from "./middleware/checkToken";
 import AuthRequest from "./interfaces";
 import crypto from "crypto"
-import swaggerJSDoc from "swagger-jsdoc";
+import swaggerDocs from "./routes/auth.json"
 import swaggerUiExpress from "swagger-ui-express"
 
 const devMode = true
-export const secretKey = devMode === true ? "ddibidbidbid3093u03" : Object.freeze(crypto.randomBytes(32).toString('hex'))
+export const secretKey = devMode ? "ddibidbidbid3093u03" : Object.freeze(crypto.randomBytes(32).toString('hex'))
 
 
 const app: Express = express()
 
-const options = {
-    definition: {
-        openapi: '3.0.0',
-        info: {
-            title: "authentication project using express.js apis",
-            version: "0.1.0",
-            description: "a sample project for my github account!",
-            contact: {
-                name: "Sahar Hallaji",
-                email: "saharhallaji.dev@gmail.com",
-            }
-        },
-        servers: [
-            {
-                url: "http://localhost:5000/"
-            }
-        ]
-    },
-    apis: ["./routes/*.ts"]
-}
-const spaces = swaggerJSDoc(options as object)
-app.use("/api-docs", swaggerUiExpress.serve, swaggerUiExpress.setup(spaces, {explorer: true}))
+app.use("/api-docs", swaggerUiExpress.serve, swaggerUiExpress.setup(swaggerDocs, {explorer: true}))
 mongoose.connect('mongodb://localhost:27017/auth_expressjs')
     .then(() => console.log('connected to MongoDB'))
     .catch(err => console.error(err))
