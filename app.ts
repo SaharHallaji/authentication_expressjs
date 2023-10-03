@@ -9,8 +9,9 @@ import crypto from "crypto"
 import swaggerDocs from "./routes/auth.json"
 import swaggerUiExpress from "swagger-ui-express"
 
-const devMode = true
-export const secretKey = devMode ? "ddibidbidbid3093u03" : Object.freeze(crypto.randomBytes(32).toString('hex'))
+
+
+export const secretKey = Object.freeze(crypto.randomBytes(64).toString("base64"))
 
 
 const app: Express = express()
@@ -27,7 +28,7 @@ app.post('/account/register', async (req: Request, res: Response) => {
 
     await User.findOne({email: email})
         .then((result) => {
-            if (result) return res.status(409).json({message: `${email} already exists`})
+            if (result) return res.status(409).json({message: `user already exists`})
         })
         .catch((err) => {
             console.log(err)
@@ -82,16 +83,16 @@ app.post('/account/extraInfo', checkToken, async (req: AuthRequest, res: Respons
 app.post('/account/login', async (req: Request, res: Response) => {
     const {email, password} = req.query
     if (!(email || password)) return res.status(400).json({message: 'enter the correct username and password'})
-    await User.findOne({email: email})
-        .then(async (user) => {
-            if (!user || !(await bcrypt.compare(password as string, user.password as string))) return res.status(400).json({message: 'email or password is incorrect!'})
-            const token = jwt.sign({email: user.email}, secretKey, {expiresIn: '1h'})
-            return res.status(200).json({message: "login successful!", token})
-        })
-        .catch((err) => {
-            console.log(err)
-            res.status(500).json({message: "something went wrong!"})
-        })
+    try{
+        const user = await User.findOne({email: email})
+        console.log(email, password)
+        if (!user || !(await bcrypt.compare(password as string, user.password as string))) return res.status(400).json({message: 'email or password is incorrect!'})
+        const token = jwt.sign({email: user.email}, secretKey, {expiresIn: '1h'})
+        return res.status(200).json({message: "login successful!", token})
+    }catch(err){
+        console.log(err)
+        res.status(500).json({message: "something went wrong!"})
+    }
 
 })
 
@@ -107,7 +108,7 @@ app.get('/user/panel', checkToken, (req: AuthRequest, res: Response) => {
         })
         .catch((err) => {
             console.log(err)
-            return res.status(404).send({message: `something went wrong!`})
+            return res.status(500).send({message: `something went wrong!`})
         })
 
 })
